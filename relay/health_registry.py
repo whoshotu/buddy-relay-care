@@ -1,17 +1,19 @@
 import asyncio
 import time
 import httpx
+import os
 from typing import Dict
 
 FAILURE_THRESHOLD = 3
 RECOVERY_TIMEOUT = 30
 CHECK_INTERVAL = 10
 
+
 class ProviderHealth:
     def __init__(self, name: str, health_url: str):
         self.name = name
         self.health_url = health_url
-        self.status = "unknown"   # healthy | degraded | circuit_open | recovering
+        self.status = "healthy"   # healthy | degraded | circuit_open | recovering
         self.failures = 0
         self.last_checked = 0.0
         self.circuit_opened_at = 0.0
@@ -29,13 +31,14 @@ class ProviderHealth:
             self.status = "degraded"
 
     def is_available(self) -> bool:
-        if self.status == "healthy":
+        if self.status in ("healthy", "unknown"):
             return True
         if self.status == "circuit_open":
             if time.time() - self.circuit_opened_at > RECOVERY_TIMEOUT:
                 self.status = "recovering"
                 return True
-        if self.status == "recovering":
+            return False
+        if self.status in ("degraded", "recovering"):
             return True
         return False
 
@@ -47,19 +50,38 @@ class ProviderHealth:
             "last_checked": self.last_checked,
         }
 
+
 class HealthRegistry:
     def __init__(self):
         self.providers: Dict[str, ProviderHealth] = {
-            "ollama":  ProviderHealth("ollama",  "http://localhost:11434/api/tags"),
-            "truefoundry": ProviderHealth("truefoundry", "https://lopezdev.truefoundry.cloud/api/llm/models"),
-            "claude":  ProviderHealth("claude",  "https://api.anthropic.com/v1/models"),
+            "ollama": ProviderHealth(
+                "ollama", "http://localhost:11434/api/tags"
+            ),
+            "truefoundry": ProviderHealth(
+                "truefoundry",
+                "https://lopezdev.truefoundry.cloud/api/llm/models",
+            ),
+            "claude": ProviderHealth(
+                "claude",
+                "https://api.anthropic.com/v1/models",
+            ),
         }
 
     async def check_provider(self, name: str):
         p = self.providers[name]
+        headers = {}
+        if name == "claude":
+            api_key = os.getenv("ANTHROPIC_API_KEY", "")
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            }
+        if name == "truefoundry":
+            token = os.getenv("TRUEFOUNDRY_TOKEN", "")
+            headers = {"Authorization": f"Bearer {token}"}
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                r = await client.get(p.health_url)
+                r = await client.get(p.health_url, headers=headers)
                 if r.status_code < 500:
                     p.record_success()
                 else:
@@ -70,10 +92,9 @@ class HealthRegistry:
 
     async def start_health_checks(self):
         while True:
-            await asyncio.gather(*[
-                self.check_provider(name)
-                for name in self.providers
-            ])
+            await asyncio.gather(
+                *[self.check_provider(name) for name in self.providers]
+            )
             await asyncio.sleep(CHECK_INTERVAL)
 
     def get_status(self):
@@ -81,5 +102,19 @@ class HealthRegistry:
 
     def get_all(self):
         return self.get_status()
+
+    def force_down(self, provider: str):
+        """Force a provider into circuit_open for demo/testing purposes."""
+        if provider in self.providers:
+            p = self.providers[provider]
+            p.status = "circuit_open"
+            p.failures = FAILURE_THRESHOLD
+            p.circuit_opened_at = time.time()
+
+    def force_restore(self, provider: str):
+        """Restore a provider to healthy for demo/testing purposes."""
+        if provider in self.providers:
+            self.providers[provider].record_success()
+
 
 registry = HealthRegistry()
