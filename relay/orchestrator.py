@@ -51,14 +51,21 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
             r.raise_for_status()
             return r.json()["message"]["content"]
 
-    if provider == "openai":
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
-        return response.choices[0].message.content
+    if provider == "truefoundry":
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(
+                "https://lopezdev.truefoundry.cloud/api/llm/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {os.getenv('TRUEFOUNDRY_TOKEN')}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": os.getenv("TRUEFOUNDRY_MODEL", "buddy/openai-gpt-oss-120b-free"),
+                    "messages": messages,
+                }
+            )
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
 
     if provider == "claude":
         import anthropic

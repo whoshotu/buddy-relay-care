@@ -51,7 +51,7 @@ class HealthRegistry:
     def __init__(self):
         self.providers: Dict[str, ProviderHealth] = {
             "ollama":  ProviderHealth("ollama",  "http://localhost:11434/api/tags"),
-            "openai":  ProviderHealth("openai",  "https://api.openai.com/v1/models"),
+            "truefoundry": ProviderHealth("truefoundry", "https://lopezdev.truefoundry.cloud/api/llm/models"),
             "claude":  ProviderHealth("claude",  "https://api.anthropic.com/v1/models"),
         }
 
