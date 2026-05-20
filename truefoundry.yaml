@@ -4,7 +4,7 @@ type: service
 image:
   type: build
   build_source:
-    type: github
+    type: git
     repo_url: https://github.com/whoshotu/buddy-relay-care
     branch: main
   build_spec:
@@ -14,7 +14,7 @@ image:
 ports:
   - port: 8000
     expose: true
-    protocol: HTTP
+    protocol: TCP
     path: /
 
 resources:
@@ -38,13 +38,15 @@ env:
     value: "mistralai/mistral-7b-instruct"
 
 liveness_probe:
-  path: /health
-  port: 8000
-  initial_delay_seconds: 10
-  period_seconds: 30
+  config:
+    path: /health
+    port: 8000
+    initial_delay_seconds: 10
+    period_seconds: 30
 
 readiness_probe:
-  path: /health
-  port: 8000
-  initial_delay_seconds: 5
-  period_seconds: 10
+  config:
+    path: /health
+    port: 8000
+    initial_delay_seconds: 5
+    period_seconds: 10
