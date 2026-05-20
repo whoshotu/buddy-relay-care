@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
 from relay.health_registry import registry
@@ -22,10 +24,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Serve the frontend UI
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
+
+@app.get("/", include_in_schema=False)
 def root():
-    return {"service": "BUDDY Relay Care", "status": "online"}
+    return FileResponse("static/index.html")
 
 
 @app.get("/health")

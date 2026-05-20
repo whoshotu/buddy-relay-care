@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUDDY Relay Care</title>
+<style>
+:root,[data-theme="light"]{--bg:#f7f6f2;--surface:#f9f8f5;--surface2:#fbfbf9;--border:#d4d1ca;--text:#28251d;--muted:#7a7974;--faint:#bab9b4;--primary:#01696f;--primary-h:#0c4e54;--success:#437a22;--error:#a12c7b;--warn:#964219;--shadow:0 4px 12px rgba(0,0,0,.08);--radius:0.5rem}
+[data-theme="dark"]{--bg:#171614;--surface:#1c1b19;--surface2:#201f1d;--border:#393836;--text:#cdccca;--muted:#797876;--faint:#5a5957;--primary:#4f98a3;--primary-h:#227f8b;--success:#6daa45;--error:#d163a7;--warn:#bb653b;--shadow:0 4px 12px rgba(0,0,0,.35)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--text);min-height:100dvh;display:grid;grid-template-rows:auto 1fr;}
+button{cursor:pointer;font:inherit;color:inherit;border:none;background:none}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.25rem;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
+.logo svg{color:var(--primary)}
+.header-right{display:flex;align-items:center;gap:.75rem}
+#theme-toggle{padding:.35rem;border-radius:var(--radius);color:var(--muted);transition:background .18s}
+#theme-toggle:hover{background:var(--surface2);color:var(--text)}
+.badge{font-size:.7rem;font-weight:600;padding:.2rem .5rem;border-radius:999px;letter-spacing:.03em}
+.badge-online{background:color-mix(in oklch,var(--success) 15%,var(--surface));color:var(--success)}
+.badge-degraded{background:color-mix(in oklch,var(--warn) 15%,var(--surface));color:var(--warn)}
+.badge-down{background:color-mix(in oklch,var(--error) 15%,var(--surface));color:var(--error)}
+
+/* LAYOUT */
+main{display:grid;grid-template-columns:280px 1fr 260px;gap:0;overflow:hidden;height:calc(100dvh - 49px)}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+
+/* SIDEBAR */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-section{padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+.sidebar-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.6rem}
+
+/* PROVIDER CARDS */
+.provider-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:.6rem .8rem;margin-bottom:.5rem}
+.provider-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
+.provider-name{font-size:.82rem;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-healthy{background:var(--success)}
+.dot-degraded{background:var(--warn)}
+.dot-down{background:var(--error)}
+.provider-meta{font-size:.72rem;color:var(--muted)}
+.provider-actions{display:flex;gap:.4rem;margin-top:.5rem}
+.btn-sm{font-size:.72rem;padding:.25rem .6rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);color:var(--text);transition:background .15s,border-color .15s}
+.btn-sm:hover{background:var(--surface2)}
+.btn-sm.danger:hover{background:color-mix(in oklch,var(--error) 12%,var(--surface));border-color:var(--error);color:var(--error)}
+.btn-sm.restore:hover{background:color-mix(in oklch,var(--success) 12%,var(--surface));border-color:var(--success);color:var(--success)}
+
+/* CHAT */
+.chat-area{display:flex;flex-direction:column;overflow:hidden}
+.messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem;scroll-behavior:smooth}
+.msg{max-width:75%;padding:.65rem .9rem;border-radius:var(--radius);font-size:.88rem;line-height:1.55;position:relative}
+.msg-user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:3px}
+.msg-assistant{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:3px}
+.msg-system{align-self:center;background:transparent;color:var(--muted);font-size:.78rem;text-align:center;padding:.25rem .5rem}
+.msg-meta{font-size:.68rem;color:rgba(255,255,255,.6);margin-top:.3rem;display:flex;gap:.5rem}
+.msg-meta-dark{color:var(--muted)}
+.tag{font-size:.65rem;padding:.1rem .35rem;border-radius:999px;font-weight:600}
+.tag-degraded{background:color-mix(in oklch,var(--warn) 20%,var(--surface));color:var(--warn)}
+.tag-ok{background:color-mix(in oklch,var(--success) 20%,var(--surface));color:var(--success)}
+
+/* TYPING INDICATOR */
+.typing{display:none;align-self:flex-start;gap:5px;padding:.6rem .9rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);border-bottom-left-radius:3px}
+.typing.visible{display:flex}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce 1.2s ease-in-out infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+
+/* INPUT BAR */
+.input-bar{padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;gap:.6rem;align-items:flex-end;background:var(--surface)}
+#chat-input{flex:1;resize:none;border:1px solid var(--border);border-radius:var(--radius);padding:.55rem .75rem;font-size:.88rem;background:var(--bg);color:var(--text);outline:none;transition:border-color .18s;max-height:120px;line-height:1.5}
+#chat-input:focus{border-color:var(--primary)}
+.btn-send{background:var(--primary);color:#fff;border-radius:var(--radius);padding:.55rem .9rem;font-size:.85rem;font-weight:600;transition:background .18s;white-space:nowrap}
+.btn-send:hover{background:var(--primary-h)}
+.btn-send:disabled{opacity:.5;cursor:not-allowed}
+
+/* RIGHT PANEL — LOGS */
+.log-panel{background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.log-header{padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.log-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.log-clear{font-size:.72rem;color:var(--muted);padding:.2rem .45rem;border-radius:var(--radius);border:1px solid var(--border);background:transparent;transition:background .15s}
+.log-clear:hover{background:var(--surface2)}
+#event-log{flex:1;overflow-y:auto;padding:.5rem .75rem;font-size:.72rem;font-family:'Courier New',monospace;line-height:1.7;color:var(--muted)}
+.log-entry{padding:.15rem 0;border-bottom:1px solid var(--border)}
+.log-entry:last-child{border-bottom:none}
+.log-ts{color:var(--faint);margin-right:.4rem}
+.log-ok{color:var(--success)}
+.log-warn{color:var(--warn)}
+.log-err{color:var(--error)}
+.log-info{color:var(--primary)}
+
+/* DEMO PANEL */
+.demo-section{padding:.75rem 1rem;border-top:1px solid var(--border)}
+.btn-demo{width:100%;padding:.45rem .75rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);font-size:.78rem;color:var(--text);margin-bottom:.4rem;transition:background .15s;text-align:left}
+.btn-demo:hover{background:var(--surface)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2"/>
+      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+      <line x1="9" y1="9" x2="9.01" y2="9"/>
+      <line x1="15" y1="9" x2="15.01" y2="9"/>
+    </svg>
+    BUDDY Relay Care
+  </div>
+  <div class="header-right">
+    <span id="system-badge" class="badge badge-online">● ONLINE</span>
+    <button id="theme-toggle" aria-label="Toggle theme">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: Providers + Demo -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Provider Health</div>
+      <div id="providers-list">Loading…</div>
+    </div>
+    <div class="sidebar-section demo-section">
+      <div class="sidebar-title" style="margin-bottom:.6rem">Demo Controls</div>
+      <button class="btn-demo" onclick="runScenario('break','ollama')">🔴 Break ollama</button>
+      <button class="btn-demo" onclick="runScenario('break','truefoundry')">🔴 Break truefoundry</button>
+      <button class="btn-demo" onclick="runScenario('break','claude')">🔴 Break claude</button>
+      <button class="btn-demo" onclick="runScenario('restore','ollama')">🟢 Restore ollama</button>
+      <button class="btn-demo" onclick="runScenario('restore','truefoundry')">🟢 Restore truefoundry</button>
+      <button class="btn-demo" onclick="runScenario('restore','claude')">🟢 Restore claude</button>
+      <button class="btn-demo" style="margin-top:.4rem;border-color:var(--primary);color:var(--primary)" onclick="restoreAll()">✨ Restore all providers</button>
+    </div>
+  </aside>
+
+  <!-- CENTER: Chat -->
+  <section class="chat-area">
+    <div class="messages" id="messages">
+      <div class="msg msg-system">👋 BUDDY is ready. Ask something or use demo controls to simulate failures.</div>
+    </div>
+    <div class="typing" id="typing-indicator">
+      <span></span><span></span><span></span>
+    </div>
+    <div class="input-bar">
+      <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send)" autocomplete="off"></textarea>
+      <button class="btn-send" id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+  </section>
+
+  <!-- RIGHT: Event Log -->
+  <aside class="log-panel">
+    <div class="log-header">
+      <span class="log-title">Event Log</span>
+      <button class="log-clear" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="event-log"></div>
+  </aside>
+</main>
+
+<script>
+const API = ''  // same origin
+let conversationHistory = []
+
+// ── THEME ────────────────────────────────────────────────────────────────────
+const html = document.documentElement
+const themeBtn = document.getElementById('theme-toggle')
+themeBtn.addEventListener('click', () => {
+  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+  html.setAttribute('data-theme', next)
+  themeBtn.innerHTML = next === 'dark'
+    ? `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`
+})
+
+// ── LOGGING ──────────────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const el = document.getElementById('event-log')
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  const div = document.createElement('div')
+  div.className = 'log-entry'
+  div.innerHTML = `<span class="log-ts">${now}</span><span class="log-${type}">${msg}</span>`
+  el.appendChild(div)
+  el.scrollTop = el.scrollHeight
+}
+function clearLog() { document.getElementById('event-log').innerHTML = '' }
+
+// ── PROVIDER HEALTH ──────────────────────────────────────────────────────────
+async function refreshHealth() {
+  try {
+    const res = await fetch(`${API}/health`)
+    const data = await res.json()
+    renderProviders(data)
+    updateSystemBadge(data)
+  } catch(e) {
+    log('Health check failed: ' + e.message, 'err')
+  }
+}
+
+function renderProviders(data) {
+  const container = document.getElementById('providers-list')
+  const providers = data.providers || data
+  const entries = typeof providers === 'object' ? Object.entries(providers) : []
+  if (!entries.length) { container.innerHTML = '<div style="color:var(--muted);font-size:.78rem">No providers found</div>'; return }
+  container.innerHTML = entries.map(([name, info]) => {
+    const state = info.state || 'unknown'
+    const dotClass = state === 'healthy' ? 'dot-healthy' : state === 'degraded' ? 'dot-degraded' : 'dot-down'
+    const failCount = info.consecutive_failures !== undefined ? `${info.consecutive_failures} fail(s)` : ''
+    return `
+    <div class="provider-card">
+      <div class="provider-header">
+        <span class="provider-name">${name}</span>
+        <span class="dot ${dotClass}"></span>
+      </div>
+      <div class="provider-meta">${state}${failCount ? ' · ' + failCount : ''}</div>
+      <div class="provider-actions">
+        <button class="btn-sm danger" onclick="runScenario('break','${name}')">Break</button>
+        <button class="btn-sm restore" onclick="runScenario('restore','${name}')">Restore</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function updateSystemBadge(data) {
+  const badge = document.getElementById('system-badge')
+  const providers = data.providers || data
+  const states = Object.values(providers).map(p => p.state || 'unknown')
+  const allDown = states.every(s => s !== 'healthy')
+  const anyDown = states.some(s => s !== 'healthy')
+  if (allDown) {
+    badge.className = 'badge badge-down'; badge.textContent = '● ALL DOWN'
+  } else if (anyDown) {
+    badge.className = 'badge badge-degraded'; badge.textContent = '● DEGRADED'
+  } else {
+    badge.className = 'badge badge-online'; badge.textContent = '● ONLINE'
+  }
+}
+
+// ── DEMO CONTROLS ────────────────────────────────────────────────────────────
+async function runScenario(action, provider) {
+  try {
+    const res = await fetch(`${API}/demo/${action}/${provider}`, {method:'POST'})
+    const data = await res.json()
+    const type = action === 'break' ? 'warn' : 'ok'
+    log(`${action.toUpperCase()} ${provider} → ${data.status?.state || 'done'}`, type)
+    refreshHealth()
+  } catch(e) {
+    log(`Demo ${action} ${provider} failed: ${e.message}`, 'err')
+  }
+}
+
+async function restoreAll() {
+  try {
+    const res = await fetch(`${API}/health`)
+    const data = await res.json()
+    const providers = Object.keys(data.providers || data)
+    for (const p of providers) await runScenario('restore', p)
+    log('All providers restored', 'ok')
+  } catch(e) {
+    log('Restore all failed: ' + e.message, 'err')
+  }
+}
+
+// ── CHAT ─────────────────────────────────────────────────────────────────────
+function addMessage(role, content, meta = {}) {
+  const container = document.getElementById('messages')
+  const div = document.createElement('div')
+  div.className = `msg msg-${role}`
+
+  if (role === 'system') {
+    div.textContent = content
+  } else {
+    const text = document.createElement('div')
+    text.textContent = content
+    div.appendChild(text)
+
+    if (role === 'assistant' && (meta.provider || meta.degraded !== undefined)) {
+      const metaRow = document.createElement('div')
+      metaRow.className = 'msg-meta msg-meta-dark'
+      metaRow.style.marginTop = '.35rem'
+      metaRow.style.display = 'flex'
+      metaRow.style.gap = '.4rem'
+      metaRow.style.flexWrap = 'wrap'
+      if (meta.provider) {
+        const t = document.createElement('span')
+        t.className = 'tag tag-ok'
+        t.textContent = '⚡ ' + meta.provider
+        metaRow.appendChild(t)
+      }
+      if (meta.degraded) {
+        const t = document.createElement('span')
+        t.className = 'tag tag-degraded'
+        t.textContent = '⚠ degraded'
+        metaRow.appendChild(t)
+      }
+      if (meta.degraded_reason) {
+        const t = document.createElement('span')
+        t.style.fontSize = '.67rem'
+        t.style.color = 'var(--muted)'
+        t.textContent = meta.degraded_reason
+        metaRow.appendChild(t)
+      }
+      div.appendChild(metaRow)
+    }
+  }
+
+  container.appendChild(div)
+  container.scrollTop = container.scrollHeight
+}
+
+function setTyping(visible) {
+  const ind = document.getElementById('typing-indicator')
+  if (visible) ind.classList.add('visible'); else ind.classList.remove('visible')
+  const msgs = document.getElementById('messages')
+  msgs.scrollTop = msgs.scrollHeight
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input')
+  const btn = document.getElementById('send-btn')
+  const text = input.value.trim()
+  if (!text) return
+
+  input.value = ''
+  input.style.height = 'auto'
+  btn.disabled = true
+
+  addMessage('user', text)
+  conversationHistory.push({role:'user', content: text})
+  log(`User: "${text.substring(0,40)}…"`, 'info')
+  setTyping(true)
+
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: text, history: conversationHistory})
+    })
+    const data = await res.json()
+    setTyping(false)
+
+    const reply = data.reply || data.message || data.response || JSON.stringify(data)
+    const provider = data.provider_used || res.headers?.get('X-Provider-Used') || ''
+    const degraded = data.degraded || res.headers?.get('X-Degraded') === 'true'
+    const reason = data.degraded_reason || res.headers?.get('X-Degraded-Reason') || ''
+
+    addMessage('assistant', reply, {provider, degraded, degraded_reason: reason})
+    conversationHistory.push({role:'assistant', content: reply})
+
+    const logType = degraded ? 'warn' : 'ok'
+    log(`Reply via ${provider || 'unknown'}${degraded ? ' [DEGRADED]' : ''}`, logType)
+    refreshHealth()
+  } catch(e) {
+    setTyping(false)
+    addMessage('system', '❌ Request failed: ' + e.message)
+    log('Chat request failed: ' + e.message, 'err')
+  }
+
+  btn.disabled = false
+  input.focus()
+}
+
+// Enter to send (Shift+Enter = newline)
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+})
+
+// Auto-resize textarea
+document.getElementById('chat-input').addEventListener('input', function() {
+  this.style.height = 'auto'
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px'
+})
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+refreshHealth()
+log('UI loaded', 'ok')
+setInterval(refreshHealth, 5000)  // poll health every 5s
+</script>
+</body>
+</html>
