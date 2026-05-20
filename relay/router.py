@@ -1,14 +1,12 @@
 from relay.health_registry import registry
-from typing import List
 
-PROVIDER_PRIORITY = ["ollama", "truefoundry", "claude"]
+PROVIDER_PRIORITY = ["ollama", "truefoundry", "openrouter"]
 
 
-def get_best_provider(skip: List[str] = []) -> str:
-    for name in PROVIDER_PRIORITY:
-        if name in skip:
+def get_best_provider(skip: list = []) -> str:
+    for provider in PROVIDER_PRIORITY:
+        if provider in skip:
             continue
-        p = registry.providers.get(name)
-        if p and p.is_available():
-            return name
+        if registry.providers[provider].is_available():
+            return provider
     return "fallback"

@@ -26,14 +26,16 @@ resources:
 replicas: 1
 
 env:
-  - name: OLLAMA_URL
+  - name: OLLAMA_MODEL
+    value: "qwen3:8b"
+  - name: TRUEFOUNDRY_TOKEN
     value: ""
-  - name: TRUEFOUNDRY_API_URL
+  - name: TRUEFOUNDRY_MODEL
+    value: "buddy/openai-gpt-oss-120b-free"
+  - name: OPENROUTER_API_KEY
     value: ""
-  - name: TRUEFOUNDRY_API_KEY
-    value: ""
-  - name: ANTHROPIC_API_KEY
-    value: ""
+  - name: OPENROUTER_MODEL
+    value: "mistralai/mistral-7b-instruct"
 
 liveness_probe:
   path: /health

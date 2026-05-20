@@ -13,7 +13,7 @@ class ProviderHealth:
     def __init__(self, name: str, health_url: str):
         self.name = name
         self.health_url = health_url
-        self.status = "healthy"   # healthy | degraded | circuit_open | recovering
+        self.status = "healthy"
         self.failures = 0
         self.last_checked = 0.0
         self.circuit_opened_at = 0.0
@@ -61,24 +61,21 @@ class HealthRegistry:
                 "truefoundry",
                 "https://lopezdev.truefoundry.cloud/api/llm/models",
             ),
-            "claude": ProviderHealth(
-                "claude",
-                "https://api.anthropic.com/v1/models",
+            "openrouter": ProviderHealth(
+                "openrouter",
+                "https://openrouter.ai/api/v1/models",
             ),
         }
 
     async def check_provider(self, name: str):
         p = self.providers[name]
         headers = {}
-        if name == "claude":
-            api_key = os.getenv("ANTHROPIC_API_KEY", "")
-            headers = {
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-            }
         if name == "truefoundry":
             token = os.getenv("TRUEFOUNDRY_TOKEN", "")
             headers = {"Authorization": f"Bearer {token}"}
+        if name == "openrouter":
+            key = os.getenv("OPENROUTER_API_KEY", "")
+            headers = {"Authorization": f"Bearer {key}"}
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 r = await client.get(p.health_url, headers=headers)
@@ -104,7 +101,6 @@ class HealthRegistry:
         return self.get_status()
 
     def force_down(self, provider: str):
-        """Force a provider into circuit_open for demo/testing purposes."""
         if provider in self.providers:
             p = self.providers[provider]
             p.status = "circuit_open"
@@ -112,7 +108,6 @@ class HealthRegistry:
             p.circuit_opened_at = time.time()
 
     def force_restore(self, provider: str):
-        """Restore a provider to healthy for demo/testing purposes."""
         if provider in self.providers:
             self.providers[provider].record_success()
 

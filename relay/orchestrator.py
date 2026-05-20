@@ -6,8 +6,6 @@ from relay.router import get_best_provider, PROVIDER_PRIORITY
 from relay.health_registry import registry
 from relay.models import ChatRequest, ChatResponse
 from relay.checkpoint import save_checkpoint
-from fastapi.responses import JSONResponse
-from fastapi import Response
 
 FALLBACK_REPLY = (
     "I'm in limited mode right now — all AI providers are temporarily unavailable. "
@@ -15,7 +13,7 @@ FALLBACK_REPLY = (
 )
 
 MAX_RETRIES = 2
-BASE_BACKOFF = 1.0  # seconds
+BASE_BACKOFF = 1.0
 
 
 async def relay_request(
@@ -93,15 +91,24 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
 
-    if provider == "claude":
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        response = await client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=1024,
-            messages=messages,
-        )
-        return response.content[0].text
+    if provider == "openrouter":
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://github.com/whoshotu/buddy-relay-care",
+                    "X-Title": "BUDDY Relay Care",
+                },
+                json={
+                    "model": os.getenv(
+                        "OPENROUTER_MODEL", "mistralai/mistral-7b-instruct"
+                    ),
+                    "messages": messages,
+                },
+            )
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
 
     raise ValueError(f"Unknown provider: {provider}")
