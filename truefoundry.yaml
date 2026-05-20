@@ -1,0 +1,48 @@
+name: buddy-relay-care
+type: service
+
+image:
+  type: build
+  build_source:
+    type: github
+    repo_url: https://github.com/whoshotu/buddy-relay-care
+    branch: main
+  build_spec:
+    type: dockerfile
+    dockerfile_path: Dockerfile
+
+ports:
+  - port: 8000
+    expose: true
+    protocol: HTTP
+    path: /
+
+resources:
+  cpu_request: 0.25
+  cpu_limit: 1
+  memory_request: 512
+  memory_limit: 1024
+
+replicas: 1
+
+env:
+  - name: OLLAMA_URL
+    value: ""
+  - name: TRUEFOUNDRY_API_URL
+    value: ""
+  - name: TRUEFOUNDRY_API_KEY
+    value: ""
+  - name: ANTHROPIC_API_KEY
+    value: ""
+
+liveness_probe:
+  path: /health
+  port: 8000
+  initial_delay_seconds: 10
+  period_seconds: 30
+
+readiness_probe:
+  path: /health
+  port: 8000
+  initial_delay_seconds: 5
+  period_seconds: 10
