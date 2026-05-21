@@ -36,6 +36,10 @@ env:
     value: ""
   - name: OPENROUTER_MODEL
     value: "mistralai/mistral-7b-instruct"
+  - name: YOUCAM_API_KEY
+    value: ""
+  - name: YOUCAM_API_SECRET
+    value: ""
 
 liveness_probe:
   config:
