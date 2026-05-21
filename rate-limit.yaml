@@ -1,0 +1,11 @@
+name: ratelimiting-config
+type: gateway-rate-limiting-config
+rules:
+  - id: "global-daily-limit"
+    when: {}
+    limit_to: 100000
+    unit: tokens_per_day
+  - id: "global-request-limit"
+    when: {}
+    limit_to: 1000
+    unit: requests_per_day
