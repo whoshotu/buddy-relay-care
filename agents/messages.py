@@ -15,6 +15,7 @@ class ChatResponseMsg(BaseModel):
 # Messages for Visual Agent
 class VisualContextRequest(BaseModel):
     session_id: str
+    image_url: Optional[str] = None  # If provided, sent to YouCam Skin Analysis API
 
 class VisualContextResponse(BaseModel):
     context_data: str
