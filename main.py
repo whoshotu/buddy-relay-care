@@ -4,17 +4,24 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
+import json
+from uagents.query import query
+
 from relay.health_registry import registry
 from relay.router import get_best_provider
 from relay.orchestrator import relay_request
 from relay.models import ChatRequest, ChatResponse
 
+from agents import run_bureau, get_care_agent_address, ChatRequestMsg, ChatResponseMsg
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(registry.start_health_checks())
+    registry_task = asyncio.create_task(registry.start_health_checks())
+    bureau_task = asyncio.create_task(run_bureau())
     yield
-    task.cancel()
+    registry_task.cancel()
+    bureau_task.cancel()
 
 
 app = FastAPI(
@@ -40,7 +47,33 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, response: Response):
-    result = await relay_request(request)
+    # Delegate to the uAgents Care Agent
+    msg = ChatRequestMsg(
+        session_id=request.session_id,
+        messages=[{"role": m.role, "content": m.content} for m in request.messages]
+    )
+    
+    care_address = get_care_agent_address()
+    response_msg = await query(destination=care_address, message=msg, timeout=60.0)
+    
+    if response_msg:
+        data = json.loads(response_msg.decode_payload())
+        result = ChatResponse(
+            reply=data.get("reply", ""),
+            provider_used=data.get("provider_used", ""),
+            degraded=data.get("degraded", False),
+            degraded_reason=data.get("degraded_reason"),
+            session_id=request.session_id
+        )
+    else:
+        result = ChatResponse(
+            reply="I'm sorry, my internal systems are taking too long to respond. Please try again.",
+            provider_used="fallback",
+            degraded=True,
+            degraded_reason="Care agent query timed out.",
+            session_id=request.session_id
+        )
+
     # Expose degradation state in headers so it's visible in curl/Postman
     response.headers["X-Provider-Used"] = result.provider_used
     response.headers["X-Degraded"] = str(result.degraded).lower()

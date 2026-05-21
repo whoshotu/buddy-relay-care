@@ -7,3 +7,4 @@ aiohttp==3.11.7
 anthropic==0.34.0
 openai==1.54.0
 boto3==1.35.67
+uagents==0.11.2

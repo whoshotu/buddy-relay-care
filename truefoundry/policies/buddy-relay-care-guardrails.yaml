@@ -1,0 +1,23 @@
+name: buddy-relay-care-guardrails
+type: gateway-guardrails-config
+
+rules:
+  - id: buddy-relay-care-main
+    when:
+      target:
+        operator: or
+        conditions:
+          model:
+            condition: in
+            values:
+              - buddy/openai-gpt-oss-120b-free
+      subjects:
+        operator: and
+        conditions:
+          in:
+            - user:lopezanth661@gmail.com
+    llm_input_guardrails: []
+    llm_output_guardrails:
+      - buddy-relay-care/buddy-relay-no-raw-errors
+    mcp_tool_pre_invoke_guardrails: []
+    mcp_tool_post_invoke_guardrails: []
