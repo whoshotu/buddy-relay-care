@@ -20,6 +20,9 @@ bureau.add(care_agent)
 def get_care_agent_address():
     return care_agent.address
 
+def get_visual_agent_address():
+    return visual_agent.address
+
 # Function to run the bureau in the background
 async def run_bureau():
     await bureau.run_async()

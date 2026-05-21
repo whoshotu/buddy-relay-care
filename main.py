@@ -12,7 +12,10 @@ from relay.router import get_best_provider
 from relay.orchestrator import relay_request
 from relay.models import ChatRequest, ChatResponse
 
-from agents import run_bureau, get_care_agent_address, ChatRequestMsg, ChatResponseMsg
+from agents import run_bureau, get_care_agent_address, get_visual_agent_address, ChatRequestMsg, ChatResponseMsg
+from agents.messages import VisualContextRequest, VisualContextResponse
+from pydantic import BaseModel
+from typing import Optional
 
 
 @asynccontextmanager
@@ -80,6 +83,31 @@ async def chat(request: ChatRequest, response: Response):
     if result.degraded_reason:
         response.headers["X-Degraded-Reason"] = result.degraded_reason
     return result
+
+
+
+class VisualRequest(BaseModel):
+    session_id: str
+    image_url: Optional[str] = None
+
+
+@app.post("/visual")
+async def visual(request: VisualRequest):
+    """Send an image to the visual agent for YouCam AI skin analysis."""
+    msg = VisualContextRequest(
+        session_id=request.session_id,
+        image_url=request.image_url,
+    )
+    visual_address = get_visual_agent_address()
+    response_msg = await query(destination=visual_address, message=msg, timeout=30.0)
+
+    if response_msg:
+        data = json.loads(response_msg.decode_payload())
+        return {"session_id": request.session_id, "visual_context": data.get("context_data", "")}
+    return JSONResponse(
+        status_code=503,
+        content={"error": "Visual agent did not respond in time."},
+    )
 
 
 @app.get("/providers")
