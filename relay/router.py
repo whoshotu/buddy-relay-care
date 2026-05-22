@@ -1,6 +1,6 @@
 from relay.health_registry import registry
 
-PROVIDER_PRIORITY = ["ollama", "truefoundry", "openrouter"]
+PROVIDER_PRIORITY = ["openrouter", "truefoundry", "ollama"]
 
 
 def get_best_provider(skip: list = []) -> str:
