@@ -60,13 +60,14 @@ async def chat(request: ChatRequest, response: Response):
     response_msg = await query(destination=care_address, message=msg, timeout=60.0)
     
     if response_msg:
-       result = ChatResponse(
-        reply=response_msg.reply,
-        provider_used=response_msg.provider_used,
-        degraded=response_msg.degraded,
-        degraded_reason=response_msg.degraded_reason,
-        session_id=request.session_id
-    )
+        data = ChatResponseMsg.model_validate(json.loads(response_msg.decode_payload()))
+        result = ChatResponse(
+            reply=data.reply,
+            provider_used=data.provider_used,
+            degraded=data.degraded,
+            degraded_reason=data.degraded_reason,
+            session_id=request.session_id
+        )
     else:
         result = ChatResponse(
             reply="I'm sorry, my internal systems are taking too long to respond. Please try again.",
@@ -101,6 +102,7 @@ async def visual(request: VisualRequest):
     response_msg = await query(destination=visual_address, message=msg, timeout=30.0)
 
     if response_msg:
+        data = ChatResponseMsg.model_validate(json.loads(response_msg.decode_payload()))
         data = json.loads(response_msg.decode_payload())
         return {"session_id": request.session_id, "visual_context": data.get("context_data", "")}
     return JSONResponse(
