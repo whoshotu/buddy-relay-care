@@ -12,8 +12,21 @@ FALLBACK_REPLY = (
     "Your conversation is saved and I'll resume normally as soon as service is restored."
 )
 
+# Default models — used only if the user sends no model_overrides
+DEFAULT_MODELS = {
+    "ollama":      os.getenv("OLLAMA_MODEL",       "qwen3:8b"),
+    "truefoundry": os.getenv("TRUEFOUNDRY_MODEL",  "buddy/openai-gpt-oss-120b-free"),
+    "openrouter":  os.getenv("OPENROUTER_MODEL",   "openrouter/owl-alpha"),
+}
+
 MAX_RETRIES = 2
 BASE_BACKOFF = 1.0
+
+
+def resolve_model(provider: str, request: ChatRequest) -> str:
+    """Return the model to use: user override > env default > hardcoded default."""
+    overrides = request.model_overrides or {}
+    return overrides.get(provider) or DEFAULT_MODELS.get(provider, "")
 
 
 async def relay_request(
@@ -28,19 +41,23 @@ async def relay_request(
         return ChatResponse(
             reply=FALLBACK_REPLY,
             provider_used="fallback",
+            model_used="none",
             degraded=True,
             degraded_reason="All providers unavailable — safe fallback mode active.",
             session_id=request.session_id,
         )
 
+    model = resolve_model(provider, request)
+
     for retry in range(MAX_RETRIES + 1):
         try:
-            reply = await call_provider(provider, request)
+            reply = await call_provider(provider, model, request)
             registry.providers[provider].record_success()
             is_degraded = provider != "ollama"
             return ChatResponse(
                 reply=reply,
                 provider_used=provider,
+                model_used=model,
                 degraded=is_degraded,
                 degraded_reason=(
                     f"Primary provider unavailable, using {provider} as fallback."
@@ -48,7 +65,7 @@ async def relay_request(
                 ),
                 session_id=request.session_id,
             )
-        except Exception as e:
+        except Exception:
             if retry < MAX_RETRIES:
                 backoff = BASE_BACKOFF * (2 ** retry) + random.uniform(0, 0.5)
                 await asyncio.sleep(backoff)
@@ -57,7 +74,7 @@ async def relay_request(
                 return await relay_request(request, _attempt=_attempt + 1)
 
 
-async def call_provider(provider: str, request: ChatRequest) -> str:
+async def call_provider(provider: str, model: str, request: ChatRequest) -> str:
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
     if provider == "ollama":
@@ -65,11 +82,7 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 f"{ollama_url}/api/chat",
-                json={
-                    "model": os.getenv("OLLAMA_MODEL", "qwen3:8b"),
-                    "messages": messages,
-                    "stream": False,
-                },
+                json={"model": model, "messages": messages, "stream": False},
             )
             r.raise_for_status()
             data = r.json()
@@ -88,12 +101,7 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "model": os.getenv(
-                        "TRUEFOUNDRY_MODEL", "buddy/openai-gpt-oss-120b-free"
-                    ),
-                    "messages": messages,
-                },
+                json={"model": model, "messages": messages},
             )
             r.raise_for_status()
             data = r.json()
@@ -116,12 +124,7 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
                     "HTTP-Referer": "https://github.com/whoshotu/buddy-relay-care",
                     "X-Title": "BUDDY Relay Care",
                 },
-                json={
-                    "model": os.getenv(
-                        "OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free"
-                    ),
-                    "messages": messages,
-                },
+                json={"model": model, "messages": messages},
             )
             r.raise_for_status()
             data = r.json()
