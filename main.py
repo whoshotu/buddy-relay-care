@@ -60,14 +60,13 @@ async def chat(request: ChatRequest, response: Response):
     response_msg = await query(destination=care_address, message=msg, timeout=60.0)
     
     if response_msg:
-        data = json.loads(response_msg.decode_payload())
-        result = ChatResponse(
-            reply=data.get("reply", ""),
-            provider_used=data.get("provider_used", ""),
-            degraded=data.get("degraded", False),
-            degraded_reason=data.get("degraded_reason"),
-            session_id=request.session_id
-        )
+       result = ChatResponse(
+        reply=response_msg.reply,
+        provider_used=response_msg.provider_used,
+        degraded=response_msg.degraded,
+        degraded_reason=response_msg.degraded_reason,
+        session_id=request.session_id
+    )
     else:
         result = ChatResponse(
             reply="I'm sorry, my internal systems are taking too long to respond. Please try again.",
