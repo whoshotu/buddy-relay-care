@@ -59,7 +59,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                "https://gateway.truefoundry.ai/models",
+                "https://gateway.truefoundry.ai/v1/models",
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
