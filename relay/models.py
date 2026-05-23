@@ -8,18 +8,11 @@ class Message(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    # Full shape (original)
     session_id: Optional[str] = "demo"
     messages: Optional[List[Message]] = None
     task_id: Optional[str] = None
-
-    # Simple shape (demo/bot friendly)
     message: Optional[str] = None
     history: Optional[List[Message]] = []
-
-    # Per-request model overrides — keyed by provider name
-    # e.g. {"openrouter": "openrouter/owl-alpha", "ollama": "llama3:8b"}
-    model_overrides: Optional[dict] = {}
 
     @model_validator(mode="after")
     def resolve_messages(self):
@@ -34,7 +27,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     provider_used: str
-    model_used: str
     degraded: bool
     degraded_reason: Optional[str] = None
     session_id: str

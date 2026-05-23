@@ -12,21 +12,8 @@ FALLBACK_REPLY = (
     "Your conversation is saved and I'll resume normally as soon as service is restored."
 )
 
-# Default models — used only if the user sends no model_overrides
-DEFAULT_MODELS = {
-    "ollama":      os.getenv("OLLAMA_MODEL",       "qwen3:8b"),
-    "truefoundry": os.getenv("TRUEFOUNDRY_MODEL",  "buddy/openai-gpt-oss-120b-free"),
-    "openrouter":  os.getenv("OPENROUTER_MODEL",   "openrouter/owl-alpha"),
-}
-
 MAX_RETRIES = 2
 BASE_BACKOFF = 1.0
-
-
-def resolve_model(provider: str, request: ChatRequest) -> str:
-    """Return the model to use: user override > env default > hardcoded default."""
-    overrides = request.model_overrides or {}
-    return overrides.get(provider) or DEFAULT_MODELS.get(provider, "")
 
 
 async def relay_request(
@@ -41,23 +28,19 @@ async def relay_request(
         return ChatResponse(
             reply=FALLBACK_REPLY,
             provider_used="fallback",
-            model_used="none",
             degraded=True,
             degraded_reason="All providers unavailable — safe fallback mode active.",
             session_id=request.session_id,
         )
 
-    model = resolve_model(provider, request)
-
     for retry in range(MAX_RETRIES + 1):
         try:
-            reply = await call_provider(provider, model, request)
+            reply = await call_provider(provider, request)
             registry.providers[provider].record_success()
             is_degraded = provider != "ollama"
             return ChatResponse(
                 reply=reply,
                 provider_used=provider,
-                model_used=model,
                 degraded=is_degraded,
                 degraded_reason=(
                     f"Primary provider unavailable, using {provider} as fallback."
@@ -74,11 +57,12 @@ async def relay_request(
                 return await relay_request(request, _attempt=_attempt + 1)
 
 
-async def call_provider(provider: str, model: str, request: ChatRequest) -> str:
+async def call_provider(provider: str, request: ChatRequest) -> str:
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
     if provider == "ollama":
         ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+        model = os.getenv("OLLAMA_MODEL", "qwen3:8b")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 f"{ollama_url}/api/chat",
@@ -92,8 +76,9 @@ async def call_provider(provider: str, model: str, request: ChatRequest) -> str:
 
     if provider == "truefoundry":
         token = os.getenv("TRUEFOUNDRY_TOKEN")
+        model = os.getenv("TRUEFOUNDRY_MODEL", "buddy/openai-gpt-oss-120b-free")
         if not token or token == "your_truefoundry_token_here":
-            raise ValueError("TRUEFOUNDRY_TOKEN not set or is placeholder")
+            raise ValueError("TRUEFOUNDRY_TOKEN not set")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 "https://lopezdev.truefoundry.cloud/api/llm/chat/completions",
@@ -113,8 +98,9 @@ async def call_provider(provider: str, model: str, request: ChatRequest) -> str:
 
     if provider == "openrouter":
         api_key = os.getenv("OPENROUTER_API_KEY")
+        model = os.getenv("OPENROUTER_MODEL", "openrouter/owl-alpha")
         if not api_key or api_key == "your_openrouter_api_key_here":
-            raise ValueError("OPENROUTER_API_KEY not set or is placeholder")
+            raise ValueError("OPENROUTER_API_KEY not set")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
