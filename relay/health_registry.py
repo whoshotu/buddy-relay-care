@@ -13,40 +13,40 @@ class ProviderHealth:
     def __init__(self, name: str, health_url: str):
         self.name = name
         self.health_url = health_url
-        self.status = "healthy"
-        self.failures = 0
+        self.state = "unknown"
+        self.consecutive_failures = 0
         self.last_checked = 0.0
         self.circuit_opened_at = 0.0
 
     def record_success(self):
-        self.failures = 0
-        self.status = "healthy"
+        self.consecutive_failures = 0
+        self.state = "healthy"
 
     def record_failure(self):
-        self.failures += 1
-        if self.failures >= FAILURE_THRESHOLD:
-            self.status = "circuit_open"
+        self.consecutive_failures += 1
+        if self.consecutive_failures >= FAILURE_THRESHOLD:
+            self.state = "circuit_open"
             self.circuit_opened_at = time.time()
         else:
-            self.status = "degraded"
+            self.state = "degraded"
 
     def is_available(self) -> bool:
-        if self.status in ("healthy", "unknown"):
+        if self.state in ("healthy", "unknown"):
             return True
-        if self.status == "circuit_open":
+        if self.state == "circuit_open":
             if time.time() - self.circuit_opened_at > RECOVERY_TIMEOUT:
-                self.status = "recovering"
+                self.state = "recovering"
                 return True
             return False
-        if self.status in ("degraded", "recovering"):
+        if self.state in ("degraded", "recovering"):
             return True
         return False
 
     def to_dict(self):
         return {
             "name": self.name,
-            "status": self.status,
-            "failures": self.failures,
+            "state": self.state,
+            "consecutive_failures": self.consecutive_failures,
             "last_checked": self.last_checked,
         }
 
@@ -95,7 +95,7 @@ class HealthRegistry:
             await asyncio.sleep(CHECK_INTERVAL)
 
     def get_status(self):
-        return {name: p.to_dict() for name, p in self.providers.items()}
+        return {"providers": {name: p.to_dict() for name, p in self.providers.items()}}
 
     def get_all(self):
         return self.get_status()
@@ -103,8 +103,8 @@ class HealthRegistry:
     def force_down(self, provider: str):
         if provider in self.providers:
             p = self.providers[provider]
-            p.status = "circuit_open"
-            p.failures = FAILURE_THRESHOLD
+            p.state = "circuit_open"
+            p.consecutive_failures = FAILURE_THRESHOLD
             p.circuit_opened_at = time.time()
 
     def force_restore(self, provider: str):
