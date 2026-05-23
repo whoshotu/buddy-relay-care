@@ -12,7 +12,8 @@ async def store_addresses(ctx):
     ctx.logger.info(f"Stored visual agent address: {visual_agent.address}")
     ctx.logger.info(f"Stored health agent address: {health_agent.address}")
 
-bureau = Bureau(port=8000, endpoint=["http://127.0.0.1:8000/submit"], network="local")
+# Port 8100 — uvicorn owns 8000, bureau gets its own port
+bureau = Bureau(port=8100, endpoint=["http://127.0.0.1:8100/submit"], network="local")
 bureau.add(visual_agent)
 bureau.add(health_agent)
 bureau.add(care_agent)
