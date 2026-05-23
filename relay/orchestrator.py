@@ -77,11 +77,12 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
     if provider == "truefoundry":
         token = os.getenv("TFY_TOKEN") or os.getenv("TRUEFOUNDRY_TOKEN")
         model = os.getenv("TRUEFOUNDRY_MODEL", "openrouter/z-ai-glm-4.5-air-free")
+        base_url = os.getenv("OPENAI_BASE_URL", "https://gateway.truefoundry.ai/api/llm/openai/v1")
         if not token:
             raise ValueError("TFY_TOKEN not set")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
-                "https://gateway.truefoundry.ai/chat/completions",
+                f"{base_url}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
