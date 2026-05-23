@@ -59,7 +59,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                "https://lopezdev.truefoundry.cloud/api/llm/models",
+                "https://gateway.truefoundry.ai/models",
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
@@ -70,7 +70,7 @@ class HealthRegistry:
     def _get_headers(self, name: str) -> dict:
         """Read env vars at call time so dotenv is always loaded first."""
         if name == "truefoundry":
-            token = os.getenv("TRUEFOUNDRY_TOKEN", "").strip()
+            token = (os.getenv("TFY_TOKEN") or os.getenv("TRUEFOUNDRY_TOKEN", "")).strip()
             return {"Authorization": f"Bearer {token}"} if token else {}
         if name == "openrouter":
             key = os.getenv("OPENROUTER_API_KEY", "").strip()
