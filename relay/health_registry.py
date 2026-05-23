@@ -67,18 +67,23 @@ class HealthRegistry:
             ),
         }
 
+    def _get_headers(self, name: str) -> dict:
+        """Read env vars at call time so dotenv is always loaded first."""
+        if name == "truefoundry":
+            token = os.getenv("TRUEFOUNDRY_TOKEN", "").strip()
+            return {"Authorization": f"Bearer {token}"} if token else {}
+        if name == "openrouter":
+            key = os.getenv("OPENROUTER_API_KEY", "").strip()
+            return {"Authorization": f"Bearer {key}"} if key else {}
+        return {}
+
     async def check_provider(self, name: str):
         p = self.providers[name]
-        headers = {}
-        if name == "truefoundry":
-            token = os.getenv("TRUEFOUNDRY_TOKEN", "")
-            headers = {"Authorization": f"Bearer {token}"}
-        if name == "openrouter":
-            key = os.getenv("OPENROUTER_API_KEY", "")
-            headers = {"Authorization": f"Bearer {key}"}
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                r = await client.get(p.health_url, headers=headers)
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                r = await client.get(p.health_url, headers=self._get_headers(name))
+                # 4xx = reachable but auth/not-found — still counts as up
+                # Only 5xx or network errors count as failures
                 if r.status_code < 500:
                     p.record_success()
                 else:
