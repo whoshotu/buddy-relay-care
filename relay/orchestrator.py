@@ -48,7 +48,7 @@ async def relay_request(
                 ),
                 session_id=request.session_id,
             )
-        except Exception:
+        except Exception as e:
             if retry < MAX_RETRIES:
                 backoff = BASE_BACKOFF * (2 ** retry) + random.uniform(0, 0.5)
                 await asyncio.sleep(backoff)
@@ -61,9 +61,10 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
     if provider == "ollama":
+        ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
-                "http://localhost:11434/api/chat",
+                f"{ollama_url}/api/chat",
                 json={
                     "model": os.getenv("OLLAMA_MODEL", "qwen3:8b"),
                     "messages": messages,
@@ -71,14 +72,20 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
                 },
             )
             r.raise_for_status()
-            return r.json()["message"]["content"]
+            data = r.json()
+            if "error" in data:
+                raise ValueError(f"Ollama error: {data['error']}")
+            return data["message"]["content"]
 
     if provider == "truefoundry":
+        token = os.getenv("TRUEFOUNDRY_TOKEN")
+        if not token or token == "your_truefoundry_token_here":
+            raise ValueError("TRUEFOUNDRY_TOKEN not set or is placeholder")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 "https://lopezdev.truefoundry.cloud/api/llm/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {os.getenv('TRUEFOUNDRY_TOKEN')}",
+                    "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
                 },
                 json={
@@ -89,26 +96,39 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
                 },
             )
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+            data = r.json()
+            if "error" in data:
+                raise ValueError(f"TrueFoundry error: {data['error']}")
+            if not data.get("choices"):
+                raise ValueError(f"TrueFoundry returned no choices: {data}")
+            return data["choices"][0]["message"]["content"]
 
     if provider == "openrouter":
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key or api_key == "your_openrouter_api_key_here":
+            raise ValueError("OPENROUTER_API_KEY not set or is placeholder")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://github.com/whoshotu/buddy-relay-care",
                     "X-Title": "BUDDY Relay Care",
                 },
                 json={
                     "model": os.getenv(
-                        "OPENROUTER_MODEL", "mistralai/mistral-7b-instruct"
+                        "OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free"
                     ),
                     "messages": messages,
                 },
             )
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+            data = r.json()
+            if "error" in data:
+                raise ValueError(f"OpenRouter error: {data['error']}")
+            if not data.get("choices"):
+                raise ValueError(f"OpenRouter returned no choices: {data}")
+            return data["choices"][0]["message"]["content"]
 
     raise ValueError(f"Unknown provider: {provider}")
