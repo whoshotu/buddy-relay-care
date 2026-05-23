@@ -134,10 +134,10 @@ main{display:grid;grid-template-columns:280px 1fr 260px;gap:0;overflow:hidden;he
       <div class="sidebar-title" style="margin-bottom:.6rem">Demo Controls</div>
       <button class="btn-demo" onclick="runScenario('break','ollama')">🔴 Break ollama</button>
       <button class="btn-demo" onclick="runScenario('break','truefoundry')">🔴 Break truefoundry</button>
-      <button class="btn-demo" onclick="runScenario('break','claude')">🔴 Break claude</button>
+      <button class="btn-demo" onclick="runScenario('break','openrouter')">🔴 Break openrouter</button>
       <button class="btn-demo" onclick="runScenario('restore','ollama')">🟢 Restore ollama</button>
       <button class="btn-demo" onclick="runScenario('restore','truefoundry')">🟢 Restore truefoundry</button>
-      <button class="btn-demo" onclick="runScenario('restore','claude')">🟢 Restore claude</button>
+      <button class="btn-demo" onclick="runScenario('restore','openrouter')">🟢 Restore openrouter</button>
       <button class="btn-demo" style="margin-top:.4rem;border-color:var(--primary);color:var(--primary)" onclick="restoreAll()">✨ Restore all providers</button>
     </div>
   </aside>
@@ -335,7 +335,7 @@ async function sendMessage() {
 
   addMessage('user', text)
   conversationHistory.push({role:'user', content: text})
-  log(`User: "${text.substring(0,40)}…"`, 'info')
+  log(`User: "${text.substring(0,40)}"`, 'info')
   setTyping(true)
 
   try {
