@@ -8,8 +8,6 @@ FAILURE_THRESHOLD = 3
 RECOVERY_TIMEOUT = 30
 CHECK_INTERVAL = 10
 
-TFY_BASE = "https://gateway.truefoundry.ai/api/llm/openai/v1"
-
 
 class ProviderHealth:
     def __init__(self, name: str, health_url: str):
@@ -61,7 +59,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                f"{TFY_BASE}/models",
+                "https://gateway.truefoundry.ai/models",
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
@@ -84,8 +82,6 @@ class HealthRegistry:
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 r = await client.get(p.health_url, headers=self._get_headers(name))
-                # 4xx = reachable but auth/not-found — still counts as up
-                # Only 5xx or network errors count as failures
                 if r.status_code < 500:
                     p.record_success()
                 else:

@@ -15,8 +15,6 @@ FALLBACK_REPLY = (
 MAX_RETRIES = 2
 BASE_BACKOFF = 1.0
 
-TFY_BASE = "https://gateway.truefoundry.ai/api/llm/openai/v1"
-
 
 async def relay_request(
     request: ChatRequest,
@@ -39,7 +37,6 @@ async def relay_request(
         try:
             reply = await call_provider(provider, request)
             registry.providers[provider].record_success()
-            # degraded only when we had to failover to a non-primary provider
             is_degraded = _attempt > 0
             return ChatResponse(
                 reply=reply,
@@ -84,7 +81,7 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
             raise ValueError("TFY_TOKEN not set")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
-                f"{TFY_BASE}/chat/completions",
+                "https://gateway.truefoundry.ai/chat/completions",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
