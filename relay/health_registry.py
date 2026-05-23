@@ -8,6 +8,8 @@ FAILURE_THRESHOLD = 3
 RECOVERY_TIMEOUT = 30
 CHECK_INTERVAL = 10
 
+TFY_BASE = "https://gateway.truefoundry.ai/api/llm/openai/v1"
+
 
 class ProviderHealth:
     def __init__(self, name: str, health_url: str):
@@ -59,7 +61,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                "https://gateway.truefoundry.ai/models",
+                f"{TFY_BASE}/models",
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
