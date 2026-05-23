@@ -37,7 +37,8 @@ async def relay_request(
         try:
             reply = await call_provider(provider, request)
             registry.providers[provider].record_success()
-            is_degraded = provider != "ollama"
+            # degraded only when we had to failover to a non-primary provider
+            is_degraded = _attempt > 0
             return ChatResponse(
                 reply=reply,
                 provider_used=provider,
