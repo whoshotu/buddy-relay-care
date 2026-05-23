@@ -75,13 +75,14 @@ async def call_provider(provider: str, request: ChatRequest) -> str:
             return data["message"]["content"]
 
     if provider == "truefoundry":
-        token = os.getenv("TRUEFOUNDRY_TOKEN")
+        # TFY_TOKEN is the correct env var name for TrueFoundry gateway
+        token = os.getenv("TFY_TOKEN") or os.getenv("TRUEFOUNDRY_TOKEN")
         model = os.getenv("TRUEFOUNDRY_MODEL", "buddy/openai-gpt-oss-120b-free")
-        if not token or token == "your_truefoundry_token_here":
-            raise ValueError("TRUEFOUNDRY_TOKEN not set")
+        if not token:
+            raise ValueError("TFY_TOKEN not set")
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.post(
-                "https://lopezdev.truefoundry.cloud/api/llm/chat/completions",
+                "https://gateway.truefoundry.ai/api/llm/chat/completions",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
