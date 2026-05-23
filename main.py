@@ -5,15 +5,12 @@ from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import asyncio
 import json
-from uagents.query import query
 
 from relay.health_registry import registry
-from relay.router import get_best_provider
 from relay.orchestrator import relay_request
 from relay.models import ChatRequest, ChatResponse
 
-from agents import run_bureau, get_care_agent_address, get_visual_agent_address, ChatRequestMsg, ChatResponseMsg
-from agents.messages import VisualContextRequest, VisualContextResponse
+from agents import run_bureau, get_care_agent_address, get_visual_agent_address
 from pydantic import BaseModel
 from typing import Optional
 
@@ -50,40 +47,13 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, response: Response):
-    # Delegate to the uAgents Care Agent
-    msg = ChatRequestMsg(
-        session_id=request.session_id,
-        messages=[{"role": m.role, "content": m.content} for m in request.messages]
-    )
-    
-    care_address = get_care_agent_address()
-    response_msg = await query(destination=care_address, message=msg, timeout=60.0)
-    
-    if response_msg:
-        data = ChatResponseMsg.model_validate(json.loads(response_msg.decode_payload()))
-        result = ChatResponse(
-            reply=data.reply,
-            provider_used=data.provider_used,
-            degraded=data.degraded,
-            degraded_reason=data.degraded_reason,
-            session_id=request.session_id
-        )
-    else:
-        result = ChatResponse(
-            reply="I'm sorry, my internal systems are taking too long to respond. Please try again.",
-            provider_used="fallback",
-            degraded=True,
-            degraded_reason="Care agent query timed out.",
-            session_id=request.session_id
-        )
+    result = await relay_request(request)
 
-    # Expose degradation state in headers so it's visible in curl/Postman
     response.headers["X-Provider-Used"] = result.provider_used
     response.headers["X-Degraded"] = str(result.degraded).lower()
     if result.degraded_reason:
         response.headers["X-Degraded-Reason"] = result.degraded_reason
     return result
-
 
 
 class VisualRequest(BaseModel):
@@ -93,21 +63,10 @@ class VisualRequest(BaseModel):
 
 @app.post("/visual")
 async def visual(request: VisualRequest):
-    """Send an image to the visual agent for YouCam AI skin analysis."""
-    msg = VisualContextRequest(
-        session_id=request.session_id,
-        image_url=request.image_url,
-    )
-    visual_address = get_visual_agent_address()
-    response_msg = await query(destination=visual_address, message=msg, timeout=30.0)
-
-    if response_msg:
-        data = ChatResponseMsg.model_validate(json.loads(response_msg.decode_payload()))
-        data = json.loads(response_msg.decode_payload())
-        return {"session_id": request.session_id, "visual_context": data.get("context_data", "")}
+    """Placeholder — visual agent via uAgents (demo only)."""
     return JSONResponse(
         status_code=503,
-        content={"error": "Visual agent did not respond in time."},
+        content={"error": "Visual agent not available in direct mode."},
     )
 
 
@@ -146,7 +105,7 @@ def demo_scenario():
             "3. POST /demo/break/ollama — simulate local LLM going down",
             "4. POST /chat — failover, X-Provider-Used: truefoundry, X-Degraded: true",
             "5. POST /demo/break/truefoundry — simulate second provider failing",
-            "6. POST /chat — failover to claude or safe fallback",
+            "6. POST /chat — failover to openrouter or safe fallback",
             "7. POST /demo/restore/ollama — recovery, next chat returns to primary",
         ]
     }
