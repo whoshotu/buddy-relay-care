@@ -8,6 +8,12 @@ FAILURE_THRESHOLD = 3
 RECOVERY_TIMEOUT = 30
 CHECK_INTERVAL = 10
 
+TFY_PROBE_PAYLOAD = {
+    "model": "openrouter/z-ai-glm-4.5-air-free",
+    "messages": [{"role": "user", "content": "ping"}],
+    "max_tokens": 1,
+}
+
 
 class ProviderHealth:
     def __init__(self, name: str, health_url: str):
@@ -59,7 +65,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                "https://gateway.truefoundry.ai/v1/models",
+                "https://gateway.truefoundry.ai/v1/chat/completions",
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
@@ -68,10 +74,12 @@ class HealthRegistry:
         }
 
     def _get_headers(self, name: str) -> dict:
-        """Read env vars at call time so dotenv is always loaded first."""
         if name == "truefoundry":
             token = (os.getenv("TFY_TOKEN") or os.getenv("TRUEFOUNDRY_TOKEN", "")).strip()
-            return {"Authorization": f"Bearer {token}"} if token else {}
+            return {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            } if token else {}
         if name == "openrouter":
             key = os.getenv("OPENROUTER_API_KEY", "").strip()
             return {"Authorization": f"Bearer {key}"} if key else {}
@@ -81,7 +89,16 @@ class HealthRegistry:
         p = self.providers[name]
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
-                r = await client.get(p.health_url, headers=self._get_headers(name))
+                if name == "truefoundry":
+                    # /models returns 401 even with valid token; probe with a real chat call
+                    r = await client.post(
+                        p.health_url,
+                        headers=self._get_headers(name),
+                        json=TFY_PROBE_PAYLOAD,
+                    )
+                else:
+                    r = await client.get(p.health_url, headers=self._get_headers(name))
+
                 if r.status_code < 500:
                     p.record_success()
                 else:
