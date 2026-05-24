@@ -5,21 +5,15 @@ import os
 from typing import Dict
 
 FAILURE_THRESHOLD = 3
-RECOVERY_TIMEOUT = 30
-CHECK_INTERVAL = 10
-
-TFY_PROBE_PAYLOAD = {
-    "model": "openrouter/z-ai-glm-4.5-air-free",
-    "messages": [{"role": "user", "content": "ping"}],
-    "max_tokens": 1,
-}
+RECOVERY_TIMEOUT = 60
+CHECK_INTERVAL = 60  # reduced from 10s to 60s to save API calls
 
 
 class ProviderHealth:
     def __init__(self, name: str, health_url: str):
         self.name = name
         self.health_url = health_url
-        self.state = "unknown"
+        self.state = "healthy"  # start healthy, only mark down on real failures
         self.consecutive_failures = 0
         self.last_checked = 0.0
         self.circuit_opened_at = 0.0
@@ -65,7 +59,7 @@ class HealthRegistry:
             ),
             "truefoundry": ProviderHealth(
                 "truefoundry",
-                "https://gateway.truefoundry.ai/v1/chat/completions",
+                None,  # no active health probe - state driven by real request outcomes
             ),
             "openrouter": ProviderHealth(
                 "openrouter",
@@ -74,12 +68,6 @@ class HealthRegistry:
         }
 
     def _get_headers(self, name: str) -> dict:
-        if name == "truefoundry":
-            token = (os.getenv("TFY_TOKEN") or os.getenv("TRUEFOUNDRY_TOKEN", "")).strip()
-            return {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            } if token else {}
         if name == "openrouter":
             key = os.getenv("OPENROUTER_API_KEY", "").strip()
             return {"Authorization": f"Bearer {key}"} if key else {}
@@ -87,18 +75,15 @@ class HealthRegistry:
 
     async def check_provider(self, name: str):
         p = self.providers[name]
+        # TrueFoundry: no active probe to avoid burning request quota.
+        # Health state is updated passively via record_success/record_failure
+        # called by the orchestrator on every real request.
+        if p.health_url is None:
+            p.last_checked = time.time()
+            return
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
-                if name == "truefoundry":
-                    # /models returns 401 even with valid token; probe with a real chat call
-                    r = await client.post(
-                        p.health_url,
-                        headers=self._get_headers(name),
-                        json=TFY_PROBE_PAYLOAD,
-                    )
-                else:
-                    r = await client.get(p.health_url, headers=self._get_headers(name))
-
+                r = await client.get(p.health_url, headers=self._get_headers(name))
                 if r.status_code < 500:
                     p.record_success()
                 else:
