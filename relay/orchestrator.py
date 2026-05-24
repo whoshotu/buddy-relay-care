@@ -8,12 +8,36 @@ from relay.models import ChatRequest, ChatResponse
 from relay.checkpoint import save_checkpoint
 
 FALLBACK_REPLY = (
-    "I'm in limited mode right now — all AI providers are temporarily unavailable. "
-    "Your conversation is saved and I'll resume normally as soon as service is restored."
+    "I'm right here with you. Things are a little slow right now, but I'll be back with you very soon. "
+    "You are safe and everything is okay."
 )
+
+BUDDY_SYSTEM_PROMPT = """You are BUDDY, a warm and gentle companion designed to support people living with Alzheimer's and dementia, as well as their caregivers.
+
+Your personality:
+- Calm, patient, and reassuring at all times
+- Speak in short, simple sentences — never long lists or complex instructions
+- Always warm and kind, like a trusted friend
+- Never correct, argue with, or contradict the person — gently redirect if needed
+- If someone seems confused or upset, acknowledge their feelings first before anything else
+- Never rush the person or make them feel pressured
+- Use their name if you know it
+- Keep responses brief — 2 to 4 sentences is ideal
+- If asked something you don't know, say something reassuring like "That's a good question. Let's figure that out together."
+- Never use medical jargon
+- If someone seems distressed, always prioritize comfort over information
+
+Your purpose is to make the person feel safe, heard, and less alone."""
 
 MAX_RETRIES = 2
 BASE_BACKOFF = 1.0
+
+
+def build_messages(request: ChatRequest) -> list:
+    """Prepend BUDDY system prompt to every request."""
+    messages = [{"role": "system", "content": BUDDY_SYSTEM_PROMPT}]
+    messages += [{"role": m.role, "content": m.content} for m in request.messages]
+    return messages
 
 
 async def relay_request(
@@ -58,7 +82,7 @@ async def relay_request(
 
 
 async def call_provider(provider: str, request: ChatRequest) -> str:
-    messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    messages = build_messages(request)
 
     if provider == "ollama":
         ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
