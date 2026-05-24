@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # must be first — loads .env before any module reads os.getenv()
+
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -75,7 +78,7 @@ def providers():
     return registry.get_all()
 
 
-# ── Demo / judging helpers ────────────────────────────────────────────────────
+# ── Demo / judging helpers ────────────────────────────────────────────────
 
 @app.post("/demo/break/{provider}")
 def demo_break(provider: str):
@@ -101,11 +104,11 @@ def demo_scenario():
     return {
         "steps": [
             "1. GET /health — see all providers healthy",
-            "2. POST /chat — normal request, X-Provider-Used: ollama",
-            "3. POST /demo/break/ollama — simulate local LLM going down",
-            "4. POST /chat — failover, X-Provider-Used: truefoundry, X-Degraded: true",
-            "5. POST /demo/break/truefoundry — simulate second provider failing",
-            "6. POST /chat — failover to openrouter or safe fallback",
-            "7. POST /demo/restore/ollama — recovery, next chat returns to primary",
+            "2. POST /chat — normal request, X-Provider-Used: truefoundry",
+            "3. POST /demo/break/truefoundry — simulate TrueFoundry going down",
+            "4. POST /chat — failover, X-Provider-Used: openrouter, X-Degraded: true",
+            "5. POST /demo/break/openrouter — simulate second provider failing",
+            "6. POST /chat — failover to ollama or safe fallback",
+            "7. POST /demo/restore/truefoundry — recovery, next chat returns to primary",
         ]
     }
