@@ -18,6 +18,11 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+def _safe_header(value: str) -> str:
+    """Strip non-latin-1 characters so HTTP headers never crash."""
+    return value.encode("latin-1", errors="replace").decode("latin-1")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     registry_task = asyncio.create_task(registry.start_health_checks())
@@ -55,7 +60,7 @@ async def chat(request: ChatRequest, response: Response):
     response.headers["X-Provider-Used"] = result.provider_used
     response.headers["X-Degraded"] = str(result.degraded).lower()
     if result.degraded_reason:
-        response.headers["X-Degraded-Reason"] = result.degraded_reason
+        response.headers["X-Degraded-Reason"] = _safe_header(result.degraded_reason)
     return result
 
 
@@ -66,7 +71,7 @@ class VisualRequest(BaseModel):
 
 @app.post("/visual")
 async def visual(request: VisualRequest):
-    """Placeholder — visual agent via uAgents (demo only)."""
+    """Placeholder - visual agent via uAgents (demo only)."""
     return JSONResponse(
         status_code=503,
         content={"error": "Visual agent not available in direct mode."},
@@ -103,12 +108,12 @@ def demo_scenario():
     """Return a suggested demo walkthrough for judges."""
     return {
         "steps": [
-            "1. GET /health — see all providers healthy",
-            "2. POST /chat — normal request, X-Provider-Used: truefoundry",
-            "3. POST /demo/break/truefoundry — simulate TrueFoundry going down",
-            "4. POST /chat — failover, X-Provider-Used: openrouter, X-Degraded: true",
-            "5. POST /demo/break/openrouter — simulate second provider failing",
-            "6. POST /chat — failover to ollama or safe fallback",
-            "7. POST /demo/restore/truefoundry — recovery, next chat returns to primary",
+            "1. GET /health - see all providers healthy",
+            "2. POST /chat - normal request, X-Provider-Used: truefoundry",
+            "3. POST /demo/break/truefoundry - simulate TrueFoundry going down",
+            "4. POST /chat - failover, X-Provider-Used: openrouter, X-Degraded: true",
+            "5. POST /demo/break/openrouter - simulate second provider failing",
+            "6. POST /chat - failover to ollama or safe fallback",
+            "7. POST /demo/restore/truefoundry - recovery, next chat returns to primary",
         ]
     }
