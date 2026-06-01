@@ -3,7 +3,7 @@
 > A resilient AI companion for people living with Alzheimer's and dementia.  
 > When cloud providers go down, BUDDY automatically fails over — without losing conversation context and without showing the patient an error screen.
 
-Built for the [DevNetwork AI + ML Hackathon 2026](https://devnetwork-ai-ml-hack-2026.devpost.com) — TrueFoundry Resilient Agents challenge.
+Built for the [DevNetwork AI + ML Hackathon 2026](https://devnetwork-ai-ml-hack-2026.devpost.com) TrueFoundry Resilient Agents challenge.
 
 ---
 
