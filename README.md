@@ -15,17 +15,6 @@ Dementia patients rely on AI assistants daily. When those assistants go offline 
 
 ---
 
-## Live Demo — 60-Second Judge Walkthrough
-
-```bash
-# 1. Clone and start
-git clone https://github.com/whoshotu/buddy-relay-care
-cd buddy-relay-care
-cp .env.example .env   # add your TFY_TOKEN and OPENROUTER_API_KEY
-pip install -r requirements.txt
-uvicorn main:app --port 8000
-```
-
 Open **http://localhost:8000** for the chat UI.
 
 Then in a second terminal, run the failover demo:
